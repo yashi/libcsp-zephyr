@@ -1,0 +1,67 @@
+name: Build and Test
+on: [push, pull_request]
+jobs:
+  run-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        board:
+          - native_posix_64
+        python:
+          - '3.9'
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Install Dev Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y make gcc device-tree-compiler
+
+      - name: Check Dev Tools Versions
+        run: |
+          echo "=== Make ==="
+          make --version
+          echo "=== GCC ==="
+          gcc --version
+          echo "=== DTC ==="
+          dtc --version
+
+      - name: Install Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Check Python Version
+        run: |
+          python --version
+
+      - name: Install West, CMake, Ninja
+        run: |
+          pip3 install west cmake ninja
+          west --version
+          cmake --version
+          ninja --version
+
+      - uses: actions/checkout@v2
+        with:
+          path: libcsp-zephyr
+
+      - name: Initialize West Workspace
+        run: west init -l libcsp-zephyr
+
+      - name: Update West Workspace
+        run: west update --narrow
+
+      - name: Install Build Dependencies
+        run: pip3 install -r zephyr/scripts/requirements-base.txt
+
+      - name: Build
+        run: west build -b ${{ matrix.board }} libcsp-zephyr
+
+      - name: Run
+        run: west build -t run
+
+      - name: Check Folders
+        run: |
+          pwd
+          find ..
+          echo ${{ github.workspace }}
